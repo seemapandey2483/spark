@@ -1,0 +1,56 @@
+from pyspark.sql import SparkSession
+
+# -------------------------
+# Create Spark Session (Optional in Databricks)
+# -------------------------
+spark = SparkSession.builder.appName("Union Example").getOrCreate()
+
+# -------------------------
+# Create Sample DataFrames
+# -------------------------
+data1 = [
+    (1, "John", 70000),
+    (2, "Mary", 80000)
+]
+
+data2 = [
+    (3, "David", 90000),
+    (4, "Lisa", 85000)
+]
+
+columns = ["EmpID", "Name", "Salary"]
+
+df1 = spark.createDataFrame(data1, columns)
+df2 = spark.createDataFrame(data2, columns)
+
+print("DataFrame 1")
+df1.show()
+
+print("DataFrame 2")
+df2.show()
+
+# -------------------------
+# Combine DataFrames using UNION
+# -------------------------
+df_union = df1.union(df2)  
+print("Union Result")
+df_union.show()
+
+# -------------------------
+# Write Result to Delta
+# -------------------------
+output_path = "/Volumes/workspace/default/test/employee_union"
+
+df_union.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .save(output_path)
+
+print("Data written to Delta successfully")
+
+# -------------------------
+# Read Back for Verification
+# -------------------------
+df_check = spark.read.format("delta").load(output_path)
+print("Reading from Delta")
+df_check.show()
