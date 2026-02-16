@@ -1,0 +1,64 @@
+from pyspark.sql import SparkSession
+
+# -------------------------
+# Create Spark Session (optional in Databricks)
+# -------------------------
+spark = SparkSession.builder.appName("Join Example").getOrCreate()
+
+# -------------------------
+# Read CSV Files
+# -------------------------
+path1 = "/Volumes/workspace/default/test/emp1.csv"
+path2 = "/Volumes/workspace/default/test/emp2.csv"
+
+df1 = spark.read.option("header", "true").option("inferSchema", "true").csv(path1)
+df2 = spark.read.option("header", "true").option("inferSchema", "true").csv(path2)
+
+print("DataFrame 1")
+df1.show()
+
+print("DataFrame 2")
+df2.show()
+
+# -------------------------
+# Combine Using Join
+# -------------------------
+# Assume EmpID is the key
+df1_alias = df1.alias("df1")
+df2_alias = df2.alias("df2")
+df_joined = df1_alias.join(df2_alias, on="EmpID", how="inner")
+
+# Select columns from both DataFrames, renaming df2 columns to avoid duplicates
+from pyspark.sql.functions import col
+
+df_joined = df_joined.select(
+    col("df1.EmpID"),
+    col("df1.EmpName").alias("EmpName_1"),
+    col("df1.Department").alias("Department_1"),
+    col("df1.Salary").alias("Salary_1"),
+    col("df2.EmpName").alias("EmpName_2"),
+    col("df2.Department").alias("Department_2"),
+    col("df2.Salary").alias("Salary_2")
+)
+
+print("Joined DataFrame")
+df_joined.show()
+
+# -------------------------
+# Write Result to Delta (optional)
+# -------------------------
+output_path = "/Volumes/workspace/default/test/employee_join_two_dataset"
+
+df_joined.write \
+    .format("delta") \
+    .mode("overwrite") \
+    .save(output_path)
+
+print("Joined data written to Delta successfully")
+
+# -------------------------
+# Read Back for Verification
+# -------------------------
+df_check = spark.read.format("delta").load(output_path)
+print("Reading from Delta")
+df_check.show()
